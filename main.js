@@ -24,7 +24,8 @@ MongoClient.connect('mongodb+srv://dmi3z:xbvbb7c9@cluster0-unbvo.mongodb.net/tes
     }
     usersdb = database.db('users');
     tasksdb = database.db('tasks');
-    listsdb = database.db('lists');
+    app.listen(port);
+    console.log('API app started! Port: ', port);
     console.log('2. Connection to DB was success!');
 })
 
