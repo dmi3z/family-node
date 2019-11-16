@@ -6,21 +6,17 @@ const ObjectID = require('mongodb').ObjectID;
 
 var usersdb;
 var tasksdb;
-var listsdb;
 
 const app = express();
-const server = app
-    .use(function(req, res, next) {
-        res.header("Access-Control-Allow-Origin", "*");
-        res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE");
-        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-        next();
-    })
-    .use(bodyParser.json())
-    .use(bodyParser.urlencoded({ extended: true }))
-    .listen(port, () => {
-    console.log('1. Server started on port: ', port);
-});
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+  });
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 MongoClient.connect('mongodb+srv://dmi3z:xbvbb7c9@cluster0-unbvo.mongodb.net/test?retryWrites=true&w=majority', (err, database) => {
     if (err) {
@@ -29,7 +25,7 @@ MongoClient.connect('mongodb+srv://dmi3z:xbvbb7c9@cluster0-unbvo.mongodb.net/tes
     usersdb = database.db('users');
     tasksdb = database.db('tasks');
     listsdb = database.db('lists');
-    console.log('2. Connection to DB was sucess!');
+    console.log('2. Connection to DB was success!');
 })
 
 
@@ -116,20 +112,6 @@ app.get('/tasks', (req, res) => {
     });
 });
 
-app.get('/lists', (req, res) => {
-    const id = req.query.id;
-    listsdb.collection(id).find().toArray((err, result) => {
-        if (err) {
-            res.sendStatus(500);
-        }
-        if (result) {
-            res.send(JSON.stringify(result));
-        } else {
-            res.sendStatus(404);
-        }
-    });
-});
-
 app.post('/tasks', (req, res) => {
     const id = req.query.id;
     const task = req.body;
@@ -202,69 +184,6 @@ app.post('/tasks', (req, res) => {
     }
 });
 
-app.post('/lists', (req, res) => {
-    const id = req.query.id;
-    const list = req.body;
-    if (list && list._id) {
-        const listId = list._id;
-        delete list._id;
-        listsdb.collection(id).updateOne({_id: ObjectID(listId)}, {$set: {...list } }, (err) => {
-            if (err) {
-                return res.sendStatus(500);
-            }
-            if (list.share_id) {
-                if (list.list_id) {
-                    list.is_alien = true;
-                    list.from_id = id;
-                    listsdb.collection(list.share_id).updateOne({ _id: ObjectID(list.list_id) }, { $set: { ...list }}, (err) => {
-                        if (err) {
-                            return res.sendStatus(500);
-                        }
-                        res.send({ id });
-                    });
-                } else {
-                    list.is_alien = true;
-                    list.from_id = id;
-                    listsdb.collection(list.share_id).insertOne(list, (err) => {
-                        if (err) {
-                            return res.sendStatus(500);
-                        }
-                        res.send({ id });
-                    });
-                }
-            } else {
-                res.send(JSON.stringify(list));
-            }
-        })
-    } else {
-        if (list.share_id) {
-            list.is_alien = true;
-            list.from_id = id;
-            listsdb.collection(list.share_id).insertOne(list, (err, data) => {
-                if (err) {
-                    return res.sendStatus(500);
-                }
-                list.is_alien = false;
-                list.list_id = data.insertedId.toString();
-                list.from_id = null;
-                listsdb.collection(id).insertOne(list, (err) => {
-                    if (err) {
-                        return res.sendStatus(500);
-                    }
-                    res.send({ id });
-                });
-            });
-        } else {
-            listsdb.collection(id).insertOne(list, (err) => {
-                if (err) {
-                    return res.sendStatus(500);
-                }
-                res.send({ id });
-            });
-        }        
-    }
-});
-
 app.delete('/task', (req, res) => {
     const user_id = req.query.id;
     const taskId = req.query.taskid;
@@ -289,28 +208,6 @@ app.delete('/task', (req, res) => {
 
 });
 
-app.delete('/list', (req, res) => {
-    const user_id = req.query.id;
-    const listId = req.query.listid;
-    listsdb.collection(user_id).findOne({ _id: ObjectID(listId)}, (err, list) => {
-        if (err) {
-            return res.sendStatus(500);
-        }
-        if (list && list.share_id) {
-            listsdb.collection(list.share_id).deleteOne({ _id: ObjectID(list.list_id)}, (err) => {
-                if (err) {
-                    return res.sendStatus(500);
-                }
-            });  
-        }   
-    });
-    listsdb.collection(user_id).deleteOne({_id: ObjectID(listId)}, (err) => {
-        if (err) {
-            return res.sendStatus(500);
-        }
-        res.send({ listId });
-    });
-});
 
 app.post('/invites', (req, res) => {
     const fromId = req.query.id;
